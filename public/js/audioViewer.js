@@ -208,7 +208,7 @@ export class AudioViewer {
                     max = BABYLON.Vector3.Maximize(max, meshMax);
                     hasValidBounds = true;
                 } catch (e) {
-                    console.warn("Could not get bounds for mesh:", mesh.name);
+                    console.warn("Could not get bounds for mesh:", mesh.name, e);
                 }
             });
 

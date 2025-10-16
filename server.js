@@ -1,6 +1,10 @@
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
+const { fileURLToPath } = require('url');
+
+// Create __dirname equivalent for ES modules
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = 3000;
