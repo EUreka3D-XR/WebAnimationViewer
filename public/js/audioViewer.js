@@ -12,7 +12,6 @@ export class AudioViewer {
     }
 
     async initialize(source) {
-        // Clear any existing content
         const canvasZone = document.getElementById("canvasZone");
         canvasZone.innerHTML = '';
 
@@ -75,9 +74,13 @@ export class AudioViewer {
 
         const { container, animationGroups } = await this.loadModel(modelUrl, modelFormat);
 
-        this.centerCameraOnModel(container.meshes);
+        if (animationGroups.length > 0) {
+            this.centerCameraOnModel(container.meshes);
+        } else {
+            this.frameCameraForStaticModel(container.meshes);
+        }
 
-        // Setup controls for animation playback (ALWAYS show - user needs to control animation)
+        // Setup controls for animation playback (ALWAYS show - user needs to control animation/audio)
         this.controls = new AnimationControls(this.scene);
         this.controls.setupEventListeners();
         this.controls.setAnimations(animationGroups);
@@ -236,5 +239,76 @@ export class AudioViewer {
                 camera.upperBetaLimit = null;
             }
         });
+    }
+
+    // This should be refactored later because it's similar to the function in SimpleViewer
+    frameCameraForStaticModel(meshes) {
+        if (!meshes || meshes.length === 0) return;
+
+        meshes.forEach(mesh => {
+            if (mesh.refreshBoundingInfo) {
+                mesh.refreshBoundingInfo();
+                mesh.computeWorldMatrix(true);
+            }
+        });
+
+        let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+        let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+        let hasValidBounds = false;
+
+        meshes.forEach(mesh => {
+            if (!mesh.getBoundingInfo) return;
+            const vertCount = mesh.getTotalVertices ? mesh.getTotalVertices() : 0;
+            if (vertCount === 0) {
+                console.log(`Skipping mesh "${mesh.name}" - no vertices`);
+                return;
+            }
+            
+            try {
+                const bb = mesh.getBoundingInfo().boundingBox;
+                min = BABYLON.Vector3.Minimize(min, bb.minimumWorld);
+                max = BABYLON.Vector3.Maximize(max, bb.maximumWorld);
+                hasValidBounds = true;
+            } catch (e) {
+                console.warn(`Error getting bounds for mesh "${mesh.name}":`, e);
+            }
+        });
+
+        if (!hasValidBounds) {
+            console.warn("No valid bounding boxes found for camera framing");
+            return;
+        }
+
+        const center = BABYLON.Vector3.Center(min, max);
+        const size = max.subtract(min);
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const radius = maxDim * 1.5;
+
+        const camera = this.scene.activeCamera;
+        if (camera && camera instanceof BABYLON.ArcRotateCamera) {
+            camera.target = center;
+            camera.radius = radius;
+            camera.alpha = Math.PI / 2;
+            camera.beta = Math.PI / 2.5;
+
+            camera.lowerAlphaLimit = null;
+            camera.upperAlphaLimit = null;
+            camera.lowerBetaLimit = null;
+            camera.upperBetaLimit = null;
+            
+            const nearPlane = Math.max(0.01, maxDim * 0.001);
+            const farPlane = Math.max(100000, radius * 1000);
+            
+            camera.lowerRadiusLimit = maxDim * 0.1;
+            camera.upperRadiusLimit = maxDim * 100;
+            camera.minZ = nearPlane;
+            camera.maxZ = farPlane;
+            
+            camera.panningSensibility = 1000;
+            camera.angularSensibilityX = 1000;
+            camera.angularSensibilityY = 1000;
+            
+            console.log(`Static model framed: center=(${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}), radius=${radius.toFixed(2)}, size=${maxDim.toFixed(2)}`);
+        }
     }
 }
