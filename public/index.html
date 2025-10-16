@@ -3,32 +3,65 @@
 <head>
     <link rel="icon" href="data:,">
     <meta charset="utf-8" />
-    <title>MIRALab - Animation Viewer</title>
+    <title>EUreka3D-XR (MIRALab) - Animation Viewer</title>
 
-    <!-- JavaScript -->
+    <!-- JS -->
     <script src="js/babylon/babylon.js"></script>
     <script src="js/babylon/babylonjs.loaders.js"></script>
+    <script type="module" src="js/babylon/built-in-viewer/babylon-viewer.esm.min.js"></script>
     <script src="js/jszip.min.js"></script>
 
     <!-- Style -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div id="zipLoaderControls">
-        <input type="text" id="zipUrlInput" placeholder="Enter ZIP file URL" style="width: 400px;" />
-        <button id="loadZipBtn">📦 Load ZIP</button>
+    <div id="loadingScreen">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>Loading 3D Model...</p>
+        </div>
     </div>
 
-    <div id="canvasZone"><canvas id="renderCanvas"></canvas></div>
+    <!-- Manual Load Controls (hidden by default) -->
+    <div id="zipLoaderControls" style="display: none;">
+        <input type="text" id="zipUrlInput" placeholder="Enter file URL (ZIP or model)" style="width: 400px;" />
+        <button id="loadZipBtn">📦 Load File</button>
+    </div>
 
+    <div id="canvasZone"></div>
+
+    <!-- Viewer Controls (Background & Lighting) -->
+    <div id="viewerControls">
+        <div class="control-group">
+            <label for="bgColor">Background:</label>
+            <input type="color" id="bgColor" value="#1e1e1e" />
+            <label>
+                <input type="checkbox" id="bgTransparent" />
+                Transparent
+            </label>
+        </div>
+        <div class="control-group">
+            <label for="lightIntensity">Light Intensity:</label>
+            <input type="range" id="lightIntensity" min="0" max="2" step="0.1" value="0.7" />
+            <span id="lightValue">0.7</span>
+        </div>
+        <div class="control-group">
+            <label for="envIntensity">Environment:</label>
+            <input type="range" id="envIntensity" min="0" max="2" step="0.1" value="1.0" />
+            <span id="envValue">1.0</span>
+        </div>
+    </div>
+
+    <!-- Animation Controls -->
     <div id="controls">
-        <select id="animationSelect"></select>
-        <button id="playBtn">▶️ Play</button>
-        <button id="pauseBtn">⏸️ Pause</button>
-        <button id="resetBtn">🔁 Reset</button>
+        <div>
+            <select id="animationSelect"></select>
+            <button id="playBtn">▶️ Play</button>
+            <button id="pauseBtn">⏸️ Pause</button>
+            <button id="resetBtn">🔁 Reset</button>
+        </div>
     </div>
 
-
-    <script src="js/app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -10,14 +10,25 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
+    "@babylonjs/viewer": "^8.31.3",
+    "axios": "^1.12.2",
     "express": "^5.1.0",
+    "multer": "^2.0.2",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "eslint": "^9.29.0",
     "globals": "^16.2.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/THMIRALab/WebAnimationViewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/THMIRALab/WebAnimationViewer/issues"
+  },
+  "homepage": "https://github.com/THMIRALab/WebAnimationViewer#readme",
+  "description": ""
 }

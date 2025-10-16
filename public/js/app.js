@@ -1,177 +1,117 @@
-/* global BABYLON, JSZip */
-const canvas = document.getElementById("renderCanvas");
-const animationSelect = document.getElementById("animationSelect");
-let engine, scene, currentAnim = null, animationGroups = [], song, audioEngine = null;
-let audioUrl = null;
+import { AnimationLoader } from './loader.js';
+import { SimpleViewer } from './simpleViewer.js';
+import { AudioViewer } from './audioViewer.js';
 
-async function initBabylon() {
-    BABYLON.Engine.audioEngine = new BABYLON.AudioEngine();
-    engine = new BABYLON.Engine(canvas, true);
-    scene = new BABYLON.Scene(engine);
-    scene.createDefaultCameraOrLight(true, true, true);
-    scene.activeCamera.attachControl(canvas, true);
+class App {
+  constructor() {
+    this.loader = null;
+    this.viewer = null;
 
-    engine.runRenderLoop(() => {
-        scene.render();
-    });
+    this.zipUrlInput = document.getElementById("zipUrlInput");
+    this.loadZipBtn = document.getElementById("loadZipBtn");
+    this.zipLoaderControls = document.getElementById("zipLoaderControls");
+    this.loadingScreen = document.getElementById("loadingScreen");
+    this.viewerControls = document.getElementById("viewerControls");
+  }
 
-    window.addEventListener("resize", () => engine.resize());
-}
+  async initialize() {
+    this.loader = new AnimationLoader();
+    this._setupManualLoad();
+    await this._checkAutoLoad();
+  }
 
-async function loadZipFromUrl(proxyUrl, zipDirectUrl) {
-    console.log("Fetching ZIP via proxy:", zipDirectUrl);
-
-    // Using a proxy to fetch the ZIP file, it can be changed to EUREKA's server side proxy.
-    const proxiedUrl = `${proxyUrl}${zipDirectUrl}`;
-    const response = await fetch(proxiedUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const zip = await JSZip.loadAsync(arrayBuffer);
-
-    let modelFile = null;
-    let audioFile = null;
-
-    const supportedModelExtensions = /\.(glb|gltf|obj|stl|splat|ply)$/i;
-    const supportedAudioExtensions = /\.mp3$/i;
-
-    zip.forEach((relativePath, zipEntry) => {
-        if (!modelFile && supportedModelExtensions.test(zipEntry.name)) {
-            modelFile = zipEntry;
-        } else if (!audioFile && supportedAudioExtensions.test(zipEntry.name)) {
-            audioFile = zipEntry;
-        }
-    });
-
-    if (!modelFile || !audioFile) {
-        console.error("Model or audio file not found in zip.");
+  _setupManualLoad() {
+    this.loadZipBtn.addEventListener("click", async () => {
+      const fileUrl = this.zipUrlInput.value.trim();
+      if (!fileUrl) {
+        alert("Please enter a valid file URL.");
         return;
-    }
-
-    const modelBlob = await modelFile.async("blob");
-    const modelUrl = URL.createObjectURL(modelBlob);
-
-    const audioBlob = await audioFile.async("blob");
-    audioUrl = URL.createObjectURL(new Blob([audioBlob], { type: "audio/mpeg" }));
-
-    const container = await BABYLON.LoadAssetContainerAsync(modelUrl, scene, {
-        pluginExtension: ".glb"
+      }
+      await this._loadContent(fileUrl);
     });
+  }
 
-    //const audioEngine = await BABYLON.CreateAudioEngineAsync();
+  async _checkAutoLoad() {
+    const fileId = this.loader.getIdFromPath();
+    if (fileId) {
+      this.zipLoaderControls.style.display = 'none';
+      const fileUrl = this.loader.constructDownloadUrl(fileId);
+      await this._loadContent(fileUrl);
+    } else {
+      if (this.loadingScreen) {
+        this.loadingScreen.style.display = 'none';
+      }
+    }
+  }
 
-    container.addAllToScene();
-    animationGroups = container.animationGroups;
+  async _loadContent(fileUrl) {
+    try {
+      const source = await this.loader.loadFromUrl(fileUrl);
 
-    scene.executeWhenReady(() => {
-        let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-        let max = new BABYLON.Vector3(Number.MIN_VALUE, Number.MIN_VALUE, Number.MIN_VALUE);
+      // Determine which viewer to use based on presence of audio
+      const hasAudio = source.audioUrl || (source.filesMap && Object.keys(source.filesMap).some(key => 
+        key.toLowerCase().endsWith('.mp3') || 
+        key.toLowerCase().endsWith('.wav') || 
+        key.toLowerCase().endsWith('.ogg')
+      ));
 
-        container.meshes.forEach(mesh => {
-            if (!mesh.getBoundingInfo) return;
-            const meshMin = mesh.getBoundingInfo().boundingBox.minimumWorld;
-            const meshMax = mesh.getBoundingInfo().boundingBox.maximumWorld;
+      if (hasAudio) {
+        console.log('Audio detected - using AudioViewer');
+        this.viewer = new AudioViewer();
+      } else {
+        console.log('No audio detected - using SimpleViewer');
+        this.viewer = new SimpleViewer();
+      }
 
-            min = BABYLON.Vector3.Minimize(min, meshMin);
-            max = BABYLON.Vector3.Maximize(max, meshMax);
+      await this.viewer.initialize(source);
+
+      if (this.viewerControls) {
+        this.viewerControls.style.display = 'block';
+      }
+
+      const colorInput = document.getElementById("bgColor");
+      const transparentChk = document.getElementById("bgTransparent");
+      const lightSlider = document.getElementById("lightIntensity");
+      const envSlider = document.getElementById("envIntensity");
+      const lightValue = document.getElementById("lightValue");
+      const envValue = document.getElementById("envValue");
+
+      if (colorInput) {
+        colorInput.addEventListener("input", (e) => this.viewer.setBackgroundColor(e.target.value));
+      }
+      if (transparentChk) {
+        transparentChk.addEventListener("change", (e) => this.viewer.setTransparentBackground(e.target.checked));
+      }
+      if (lightSlider) {
+        lightSlider.addEventListener("input", (e) => {
+          this.viewer.setLightIntensity(e.target.value);
+          if (lightValue) lightValue.textContent = parseFloat(e.target.value).toFixed(1);
         });
-
-        const center = min.add(max).scale(0.5);
-        const size = max.subtract(min).length();
-
-        const camera = scene.activeCamera;
-        if (camera) {
-            camera.setTarget(center);
-
-            const cameraOffset = new BABYLON.Vector3(0, size * 0.5, -size * 2);
-            camera.position = center.add(cameraOffset);
-        }
-    });
-
-    animationGroups = animationGroups.filter(group => !group.name.startsWith("Key"));
-    animationGroups.forEach(group => {
-        group.stop();
-        group.reset();
-    });
-
-    animationSelect.innerHTML = "";
-    if (animationGroups.length > 0) {
-        currentAnim = animationGroups[0];
-        animationGroups.forEach((group, _) => {
-            const option = document.createElement("option");
-            option.value = group.name;
-            option.textContent = group.name;
-            animationSelect.appendChild(option);
+      }
+      if (envSlider) {
+        envSlider.addEventListener("input", (e) => {
+          this.viewer.setEnvironmentIntensity(e.target.value);
+          if (envValue) envValue.textContent = parseFloat(e.target.value).toFixed(1);
         });
+      }
+
+      if (this.loadingScreen) {
+        this.loadingScreen.style.display = 'none';
+      }
+
+    } catch (err) {
+      console.error("Error loading content:", err);
+      
+      if (this.loadingScreen) {
+        this.loadingScreen.style.display = 'none';
+      }
+      
+      alert("Failed to load content: " + err.message);
     }
+  }
 }
-
-function setupControls() {
-    animationSelect.addEventListener("change", () => {
-        const selectedName = animationSelect.value;
-        const selectedGroup = animationGroups.find(g => g.name === selectedName);
-
-        if (currentAnim) currentAnim.stop();
-        currentAnim = selectedGroup;
-        currentAnim.reset();
-    });
-
-    document.getElementById("playBtn").addEventListener("click", async () => {
-        if (!currentAnim || !audioUrl) return;
-
-        if (!audioEngine) {
-            audioEngine = await BABYLON.CreateAudioEngineAsync();
-            song = await BABYLON.CreateStreamingSoundAsync("narration", audioUrl, scene);
-            await audioEngine.unlockAsync();
-        }
-
-        if (!BABYLON.Engine.audioEngine) {
-            BABYLON.Engine.audioEngine = new BABYLON.AudioEngine();
-        }
-
-        const ctx = BABYLON.Engine.audioEngine.audioContext;
-        if (ctx && ctx.state === "suspended") {
-            try {
-                await ctx.resume();
-            } catch (e) {
-                console.warn("AudioContext resume failed:", e);
-            }
-        }
-        currentAnim.play(true);
-        song.play();
-    });
-
-    document.getElementById("pauseBtn").addEventListener("click", () => {
-        if (currentAnim) currentAnim.pause();
-        if (song) song.pause();
-    });
-
-    document.getElementById("resetBtn").addEventListener("click", () => {
-        if (currentAnim) {
-            currentAnim.reset();
-            currentAnim.stop();
-        }
-        if (song) song.stop();
-    });
-}
-
-document.getElementById("loadZipBtn").addEventListener("click", async () => {
-    const input = document.getElementById("zipUrlInput");
-    const zipDirectUrl = input.value.trim();
-
-    if (!zipDirectUrl) {
-        alert("Please enter a valid ZIP URL.");
-        return;
-    }
-
-    // Load the ZIP file directly from the URL, it can be passed dynamically. Using FileBrowser API for testing.
-    const proxyUrl = "http://localhost:3000/proxy-zip?url=";
-    await loadZipFromUrl(proxyUrl, zipDirectUrl);
-});
 
 (async function () {
-    await initBabylon();
-    setupControls();
-    // Load the ZIP file directly from the URL, it can be passed dynamically. Using FileBrowser API for testing.
-    /*const proxyUrl = "http://localhost:3000/proxy-zip?url=";
-    const zipDirectUrl = "http://localhost:59020/api/public/dl/6pqI-N0W";
-    await loadZipFromUrl(proxyUrl, zipDirectUrl);*/
+  const app = new App();
+  await app.initialize();
 })();
