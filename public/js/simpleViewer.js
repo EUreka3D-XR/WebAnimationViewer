@@ -258,8 +258,6 @@ export class SimpleViewer {
 
     console.log(`Loaded ${result.meshes.length} meshes, ${result.animationGroups?.length || 0} animations`);
 
-    this._frameCamera(result.meshes);
-
     const animationGroups = result.animationGroups || [];
     const filteredAnimationGroups = animationGroups.filter(
       group => !group.name.startsWith("Key")
@@ -277,7 +275,10 @@ export class SimpleViewer {
       this.controls.setupEventListeners();
       this.controls.setAnimations(filteredAnimationGroups);
       this.controls.showControls();
+
+      this._centerAnimatedModel(result.meshes);
     } else {
+      this._frameCamera(result.meshes);
       console.log('No animations found - hiding controls');
       
       const controlsElement = document.getElementById("controls");
@@ -290,7 +291,6 @@ export class SimpleViewer {
   _frameCamera(meshes) {
     if (!meshes || meshes.length === 0) return;
 
-    // Force update all meshes first
     meshes.forEach(mesh => {
       if (mesh.refreshBoundingInfo) {
         mesh.refreshBoundingInfo();
@@ -338,7 +338,6 @@ export class SimpleViewer {
       camera.alpha = Math.PI / 2;
       camera.beta = Math.PI / 2.5;
 
-      // Full rotation freedom
       camera.lowerAlphaLimit = null;
       camera.upperAlphaLimit = null;
       camera.lowerBetaLimit = null;
@@ -352,7 +351,6 @@ export class SimpleViewer {
       camera.minZ = nearPlane;
       camera.maxZ = farPlane;
       
-      // Fix camera input settings for smooth rotation
       camera.panningSensibility = 1000;
       camera.angularSensibilityX = 1000;
       camera.angularSensibilityY = 1000;
@@ -360,6 +358,59 @@ export class SimpleViewer {
       console.log(`Camera framed: center=(${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}), radius=${radius.toFixed(2)}, size=${maxDim.toFixed(2)}`);
       console.log(`Near plane: ${nearPlane.toFixed(4)}, far plane: ${farPlane.toFixed(2)}`);
     }
+  }
+
+  _centerAnimatedModel(meshes) {
+    this.scene.executeWhenReady(() => {
+      if (!meshes || meshes.length === 0) {
+        console.warn("No meshes to center camera on");
+        return;
+      }
+
+      let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+      let max = new BABYLON.Vector3(Number.MIN_VALUE, Number.MIN_VALUE, Number.MIN_VALUE);
+
+      let hasValidBounds = false;
+
+      meshes.forEach(mesh => {
+        if (!mesh.getBoundingInfo) return;
+        
+        try {
+          const meshMin = mesh.getBoundingInfo().boundingBox.minimumWorld;
+          const meshMax = mesh.getBoundingInfo().boundingBox.maximumWorld;
+
+          min = BABYLON.Vector3.Minimize(min, meshMin);
+          max = BABYLON.Vector3.Maximize(max, meshMax);
+          hasValidBounds = true;
+        } catch (e) {
+          console.warn("Could not get bounds for mesh:", mesh.name, e);
+        }
+      });
+
+      if (!hasValidBounds) {
+        console.warn("No valid bounding boxes found");
+        return;
+      }
+
+      const center = min.add(max).scale(0.5);
+      const size = max.subtract(min);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const radius = maxDim * 1.5;
+
+      const camera = this.scene.activeCamera;
+      if (camera && camera instanceof BABYLON.ArcRotateCamera) {
+        camera.target = center;
+        camera.radius = radius;
+        camera.alpha = Math.PI / 2; 
+        camera.beta = Math.PI / 2.5;
+        console.log(`Camera centered on model (size: ${maxDim.toFixed(2)})`);
+
+        camera.lowerAlphaLimit = null;
+        camera.upperAlphaLimit = null;
+        camera.lowerBetaLimit = null;
+        camera.upperBetaLimit = null;
+      }
+    });
   }
 
   async _detectPLYType(file) {
