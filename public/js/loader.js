@@ -70,6 +70,7 @@ export class AnimationLoader {
   async loadFromUrl(fileUrl) {
     const proxiedUrl = `${this.proxyUrl}${fileUrl}`;
     const response = await fetch(proxiedUrl);
+    console.log(`Fetching from URL: ${proxiedUrl}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const blob = await response.blob();
 
