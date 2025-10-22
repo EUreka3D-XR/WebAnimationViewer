@@ -53,7 +53,12 @@ export class SimpleViewer {
       this.scene
     );
     camera.attachControl(this.canvas, true);
-    //camera.lowerRadiusLimit = 0.1;
+    
+    // Set proper clipping planes from the start
+    camera.minZ = 0.01;
+    camera.maxZ = 10000;
+    camera.lowerRadiusLimit = 0.01;
+    
     camera.wheelPrecision = 50;
     camera.pinchPrecision = 50;
 
@@ -242,7 +247,6 @@ export class SimpleViewer {
         );
       }
     } else {
-      // URL loading
       const ext = (source.format || '').toLowerCase();
       const pluginExt = pluginFor[ext] || undefined;
 
@@ -257,6 +261,14 @@ export class SimpleViewer {
     }
 
     console.log(`Loaded ${result.meshes.length} meshes, ${result.animationGroups?.length || 0} animations`);
+
+    // Ensure meshes render properly at all distances
+    result.meshes.forEach(mesh => {
+      if (mesh) {
+        // Disable frustum culling so mesh always renders even when camera is very close
+        mesh.alwaysSelectAsActiveMesh = true;
+      }
+    });
 
     const animationGroups = result.animationGroups || [];
     const filteredAnimationGroups = animationGroups.filter(
@@ -346,7 +358,7 @@ export class SimpleViewer {
       const nearPlane = Math.max(0.01, maxDim * 0.001);
       const farPlane = Math.max(100000, radius * 1000);
       
-      camera.lowerRadiusLimit = maxDim * 0.1;
+      camera.lowerRadiusLimit = 0.01;  // Allow VERY close zoom
       camera.upperRadiusLimit = maxDim * 100;
       camera.minZ = nearPlane;
       camera.maxZ = farPlane;
