@@ -2,7 +2,7 @@
 
 export class AnimationLoader {
   constructor() {
-    this.proxyUrl = "http://localhost:3000/proxy?url=";
+    this.proxyUrl = "/proxy?url=";
     this.supportedModelExtensions = /\.(glb|gltf|obj|stl|splat|ply)$/i;
     this.supportedAudioExtensions = /\.(mp3|wav|ogg)$/i;
     this.supported360Extensions = /\.(jpg|jpeg|png)$/i;
