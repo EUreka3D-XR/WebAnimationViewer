@@ -232,12 +232,23 @@ body, html {
     background: #005a9e;
 }
 
+/* Info button - special styling */
+#infoBtn {
+    background: #17a2b8;
+    font-size: 16px;
+    padding: 6px 12px;
+    min-width: 40px;
+}
+
+#infoBtn:hover {
+    background: #138496;
+}
+
 .control-group {
     display: flex;
     gap: 10px;
     align-items: center;
 }
-
 #timeDisplay {
     color: white;
     font-family: monospace;
@@ -252,4 +263,73 @@ body, html {
     color: white;
     font-family: monospace;
     font-size: 14px;
+}
+
+/* Scene Description (Cases 4 & 5) - Now shown on button click */
+.scene-description {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 0;
+    border-radius: 12px;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+    z-index: 2000;
+    max-width: 600px;
+    max-height: 70vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.description-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.description-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.description-header button {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.description-header button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.description-content {
+    padding: 20px;
+    overflow-y: auto;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #333;
+}
+
+.description-content p {
+    margin: 0 0 12px 0;
+}
+
+.description-content p:last-child {
+    margin-bottom: 0;
 }

@@ -336,6 +336,40 @@ export class AnimationControls {
     });
   }
 
+  /**
+   * Cleanup method to dispose audio and remove dynamically created controls
+   */
+  dispose() {
+    // Stop and cleanup audio
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.audioElement.currentTime = 0;
+      this.audioElement.src = ''; // Release the audio file
+      this.audioElement = null;
+      console.log(' Audio element disposed');
+    }
+
+    // Remove dynamically created controls (timeline and speed selector)
+    if (this.timelineSlider && this.timelineSlider.parentElement) {
+      this.timelineSlider.parentElement.remove();
+      console.log(' Timeline controls removed');
+    }
+
+    // Stop all animations
+    if (this.currentAnimationGroup) {
+      this.currentAnimationGroup.stop();
+      this.currentAnimationGroup = null;
+    }
+
+    // Clear references
+    this.animationGroups = [];
+    this.animMetas = [];
+    this.isPlaying = false;
+    this.isScrubbing = false;
+
+    console.log(' AnimationControls disposed');
+  }
+
   showControls() { if (this.controls) this.controls.style.display = 'block'; }
   hideControls() { if (this.controls) this.controls.style.display = 'none'; }
 }

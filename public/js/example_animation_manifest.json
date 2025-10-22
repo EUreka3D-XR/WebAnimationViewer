@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0",
+  "package": {
+    "name": "MIRALab Demo",
+    "version": "2025-10-21"
+  },
+
+  "defaultSceneId": "scene-01",
+
+  "scenes": [
+    {
+      "id": "scene-01",
+      "title": "Construction",
+      "files": {
+        "model": "scene-01/model.glb",
+        "background": "scene-01/background.jpg",
+        "audio": "scene-01/audio.mp3",
+        "description": "scene-01/description.txt"
+      }
+    },
+
+    {
+      "id": "scene-02",
+      "title": "Changes",
+      "files": {
+        "model": "scene-02/model.glb",
+        "background": "scene-02/background.jpg",
+        "audio": "scene-02/audio.mp3",
+        "description": "scene-02/description.txt"
+      }
+    },
+	
+	{
+      "id": "scene-03",
+      "title": "Decoration",
+      "files": {
+        "model": "scene-03/model.glb",
+        "background": "scene-03/background.jpg",
+        "audio": "scene-03/audio.mp3",
+        "description": "scene-03/description.txt"
+      }
+    }
+  ]
+}
