@@ -34,7 +34,7 @@ app.get('/proxy', async (req, res) => {
     }
 });
 
-// Catch-all route for ID-based routing (must be last)
+// Catch-all route for ID-based routing
 app.use((req, res, next) => {
     // If the request is for a file (has extension), let it 404
     if (path.extname(req.path)) {

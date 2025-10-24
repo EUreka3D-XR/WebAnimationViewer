@@ -1,5 +1,6 @@
 /* global BABYLON */
 import { AnimationControls } from './controls.js';
+import * as Utils from './utils.js';
 
 export class SimpleViewer {
   constructor() {
@@ -80,59 +81,40 @@ export class SimpleViewer {
     window.addEventListener("resize", () => this.engine.resize());
 
     await this._loadModel(source);
+    
+    // Wait for the scene to be fully ready before signaling completion
+    await this._waitForSceneReady();
+  }
+  
+  async _waitForSceneReady() {
+    return new Promise((resolve) => {
+      this.scene.executeWhenReady(() => {
+        // Wait for at least one render frame to ensure the model is actually visible
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      });
+    });
   }
 
   setBackgroundColor(hex) {
     if (!this.scene) return;
     this._bgHex = hex;
-    this._useGradient = false;
-    
-    const c = BABYLON.Color3.FromHexString(hex);
-    const alpha = this._transparent ? 0 : 1;
-    this.scene.clearColor = new BABYLON.Color4(c.r, c.g, c.b, alpha);
-
-    const canvasZone = document.getElementById("canvasZone");
-    if (canvasZone) {
-      canvasZone.style.background = hex;
-    }
-
-    if (!this._transparent && this.canvas) {
-      this.canvas.style.background = hex;
-    }
-
-    if (this._envHelper && this._envHelper.setMainColor) {
-      this._envHelper.setMainColor(c);
-    }
+    Utils.setBackgroundColor(this.scene, this.canvas, hex, this._transparent);
   }
 
   setTransparentBackground(on) {
     if (!this.scene || !this.canvas) return;
     this._transparent = !!on;
-    
-    const c = BABYLON.Color3.FromHexString(this._bgHex);
-    this.scene.clearColor = new BABYLON.Color4(c.r, c.g, c.b, this._transparent ? 0 : 1);
-    
-    this.canvas.style.background = this._transparent ? "transparent" : this._bgHex;
-    
-    const canvasZone = document.getElementById("canvasZone");
-    if (canvasZone) {
-      canvasZone.style.background = this._transparent ? "transparent" : this._bgHex;
-    }
-    
-    if (this.engine) {
-      this.engine.setHardwareScalingLevel(1);
-    }
+    Utils.setTransparentBackground(this.scene, this.canvas, this._bgHex, this._transparent);
   }
 
   setLightIntensity(v) {
-    const intensity = Math.max(0, Number(v) || 0);
-    if (this._hemi) this._hemi.intensity = intensity;
-    if (this._dirLight) this._dirLight.intensity = intensity * 0.7;
+    Utils.setLightIntensity(this.scene, v);
   }
 
   setEnvironmentIntensity(v) {
-    if (!this.scene) return;
-    this.scene.environmentIntensity = Math.max(0, Number(v) || 0);
+    Utils.setEnvironmentIntensity(this.scene, v);
   }
 
   async _loadModel(source) {
@@ -263,12 +245,7 @@ export class SimpleViewer {
     console.log(`Loaded ${result.meshes.length} meshes, ${result.animationGroups?.length || 0} animations`);
 
     // Ensure meshes render properly at all distances
-    result.meshes.forEach(mesh => {
-      if (mesh) {
-        // Disable frustum culling so mesh always renders even when camera is very close
-        mesh.alwaysSelectAsActiveMesh = true;
-      }
-    });
+    Utils.applyCloseZoomFix(result.meshes);
 
     const animationGroups = result.animationGroups || [];
     const filteredAnimationGroups = animationGroups.filter(
@@ -301,128 +278,15 @@ export class SimpleViewer {
   }
 
   _frameCamera(meshes) {
-    if (!meshes || meshes.length === 0) return;
-
-    meshes.forEach(mesh => {
-      if (mesh.refreshBoundingInfo) {
-        mesh.refreshBoundingInfo();
-        mesh.computeWorldMatrix(true);
-      }
-    });
-
-    let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-    let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
-    let hasValidBounds = false;
-
-    meshes.forEach(mesh => {
-      if (!mesh.getBoundingInfo) return;
-      const vertCount = mesh.getTotalVertices ? mesh.getTotalVertices() : 0;
-      if (vertCount === 0) {
-        console.log(`Skipping mesh "${mesh.name}" - no vertices`);
-        return;
-      }
-      
-      try {
-        const bb = mesh.getBoundingInfo().boundingBox;
-        min = BABYLON.Vector3.Minimize(min, bb.minimumWorld);
-        max = BABYLON.Vector3.Maximize(max, bb.maximumWorld);
-        hasValidBounds = true;
-        console.log(`Mesh "${mesh.name}" bounds: min=${bb.minimumWorld}, max=${bb.maximumWorld}`);
-      } catch (e) {
-        console.warn(`Error getting bounds for mesh "${mesh.name}":`, e);
-      }
-    });
-
-    if (!hasValidBounds) {
-      console.warn("No valid bounding boxes found for camera framing");
-      return;
-    }
-
-    const center = BABYLON.Vector3.Center(min, max);
-    const size = max.subtract(min);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const radius = maxDim * 1.5;
-
     const camera = this.scene.activeCamera;
-    if (camera && camera instanceof BABYLON.ArcRotateCamera) {
-      camera.target = center;
-      camera.radius = radius;
-      camera.alpha = Math.PI / 2;
-      camera.beta = Math.PI / 2.5;
-
-      camera.lowerAlphaLimit = null;
-      camera.upperAlphaLimit = null;
-      camera.lowerBetaLimit = null;
-      camera.upperBetaLimit = null;
-      
-      const nearPlane = Math.max(0.01, maxDim * 0.001);
-      const farPlane = Math.max(100000, radius * 1000);
-      
-      camera.lowerRadiusLimit = 0.01;  // Allow VERY close zoom
-      camera.upperRadiusLimit = maxDim * 100;
-      camera.minZ = nearPlane;
-      camera.maxZ = farPlane;
-      
-      camera.panningSensibility = 1000;
-      camera.angularSensibilityX = 1000;
-      camera.angularSensibilityY = 1000;
-      
-      console.log(`Camera framed: center=(${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}), radius=${radius.toFixed(2)}, size=${maxDim.toFixed(2)}`);
-      console.log(`Near plane: ${nearPlane.toFixed(4)}, far plane: ${farPlane.toFixed(2)}`);
-    }
+    // Use default settings which match the original working code
+    Utils.frameCameraForStaticModel(camera, meshes);
   }
 
   _centerAnimatedModel(meshes) {
-    this.scene.executeWhenReady(() => {
-      if (!meshes || meshes.length === 0) {
-        console.warn("No meshes to center camera on");
-        return;
-      }
-
-      let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-      let max = new BABYLON.Vector3(Number.MIN_VALUE, Number.MIN_VALUE, Number.MIN_VALUE);
-
-      let hasValidBounds = false;
-
-      meshes.forEach(mesh => {
-        if (!mesh.getBoundingInfo) return;
-        
-        try {
-          const meshMin = mesh.getBoundingInfo().boundingBox.minimumWorld;
-          const meshMax = mesh.getBoundingInfo().boundingBox.maximumWorld;
-
-          min = BABYLON.Vector3.Minimize(min, meshMin);
-          max = BABYLON.Vector3.Maximize(max, meshMax);
-          hasValidBounds = true;
-        } catch (e) {
-          console.warn("Could not get bounds for mesh:", mesh.name, e);
-        }
-      });
-
-      if (!hasValidBounds) {
-        console.warn("No valid bounding boxes found");
-        return;
-      }
-
-      const center = min.add(max).scale(0.5);
-      const size = max.subtract(min);
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const radius = maxDim * 1.5;
-
-      const camera = this.scene.activeCamera;
-      if (camera && camera instanceof BABYLON.ArcRotateCamera) {
-        camera.target = center;
-        camera.radius = radius;
-        camera.alpha = Math.PI / 2; 
-        camera.beta = Math.PI / 2.5;
-        console.log(`Camera centered on model (size: ${maxDim.toFixed(2)})`);
-
-        camera.lowerAlphaLimit = null;
-        camera.upperAlphaLimit = null;
-        camera.lowerBetaLimit = null;
-        camera.upperBetaLimit = null;
-      }
-    });
+    const camera = this.scene.activeCamera;
+    // Use default settings which match the original working code
+    Utils.centerCameraOnModel(camera, this.scene, meshes);
   }
 
   async _detectPLYType(file) {
