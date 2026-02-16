@@ -28,6 +28,7 @@ export class SimpleViewer {
     this.canvas.id = 'renderCanvas';
     this.canvas.style.width = '100%';
     this.canvas.style.height = '100%';
+    this.canvas.style.display = 'block';
     canvasZone.appendChild(this.canvas);
 
     canvasZone.style.background = this._bgHex;
@@ -36,15 +37,26 @@ export class SimpleViewer {
       preserveDrawingBuffer: true,
       stencil: true,
       premultipliedAlpha: false,  // Important for transparency
-      alpha: true
+      alpha: true,
+      antialias: true,
+      powerPreference: "high-performance",
+      adaptToDeviceRatio: true // Automatically adjust to device pixel ratio
     });
     
+    // Ensure full quality rendering
+    this.engine.setHardwareScalingLevel(1.0);
+    
     this.scene = new BABYLON.Scene(this.engine);
+    
+    this.scene.imageProcessingConfiguration.contrast = 1.0;
+    this.scene.imageProcessingConfiguration.exposure = 1.0;
+    this.scene.imageProcessingConfiguration.toneMappingEnabled = true;
+    
+    BABYLON.Database.IDBStorageEnabled = false; // Disable texture caching that might reduce quality. Maybe it would be necessary to cache for memory issues. We will think about it.
 
     const c = BABYLON.Color3.FromHexString(this._bgHex);
     this.scene.clearColor = new BABYLON.Color4(c.r, c.g, c.b, 1);
 
-    // Create ArcRotateCamera for better control. This differs from audioViewr
     const camera = new BABYLON.ArcRotateCamera(
       "camera",
       Math.PI / 2,
@@ -55,10 +67,9 @@ export class SimpleViewer {
     );
     camera.attachControl(this.canvas, true);
     
-    // Set proper clipping planes from the start
-    camera.minZ = 0.01;
-    camera.maxZ = 10000;
-    camera.lowerRadiusLimit = 0.01;
+    camera.minZ = 1;
+    camera.maxZ = 50000;
+    camera.lowerRadiusLimit = 0.1;
     
     camera.wheelPrecision = 50;
     camera.pinchPrecision = 50;
@@ -246,6 +257,34 @@ export class SimpleViewer {
 
     // Ensure meshes render properly at all distances
     Utils.applyCloseZoomFix(result.meshes);
+    
+    result.meshes.forEach(mesh => {
+      if (mesh.material) {
+        const material = mesh.material;
+        
+        const textureProps = ['diffuseTexture', 'albedoTexture', 'normalTexture', 
+                             'emissiveTexture', 'specularTexture', 'metallicTexture',
+                             'roughnessTexture', 'ambientTexture', 'bumpTexture', 'opacityTexture'];
+        
+        textureProps.forEach(prop => {
+          const texture = material[prop];
+          if (texture) {
+            texture.anisotropicFilteringLevel = 16; 
+            texture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+          }
+        });
+        
+        const hasAlpha = material.opacityTexture || 
+                        material.albedoTexture?.hasAlpha || 
+                        material.diffuseTexture?.hasAlpha ||
+                        material.alpha < 1.0;
+        
+        if (hasAlpha) {
+          material.backFaceCulling = false; 
+          mesh.alphaIndex = 100; 
+        }
+      }
+    });
 
     const animationGroups = result.animationGroups || [];
     const filteredAnimationGroups = animationGroups.filter(
@@ -281,12 +320,16 @@ export class SimpleViewer {
     const camera = this.scene.activeCamera;
     // Use default settings which match the original working code
     Utils.frameCameraForStaticModel(camera, meshes);
+    
+    this._adjustCameraZoomSpeed(camera, meshes);
   }
 
   _centerAnimatedModel(meshes) {
     const camera = this.scene.activeCamera;
     // Use default settings which match the original working code
     Utils.centerCameraOnModel(camera, this.scene, meshes);
+    
+    this._adjustCameraZoomSpeed(camera, meshes);
   }
 
   async _detectPLYType(file) {
@@ -732,6 +775,40 @@ export class SimpleViewer {
       reader.onerror = () => reject(new Error('Failed to read PLY file'));
       reader.readAsArrayBuffer(file);
     });
+  }
+
+  _adjustCameraZoomSpeed(camera, meshes) {
+    const validMeshes = meshes.filter(m => m.getTotalVertices && m.getTotalVertices() > 0);
+    if (validMeshes.length === 0) return;
+    
+    let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
+    let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
+    
+    validMeshes.forEach(mesh => {
+      const boundingInfo = mesh.getBoundingInfo();
+      const meshMin = boundingInfo.boundingBox.minimumWorld;
+      const meshMax = boundingInfo.boundingBox.maximumWorld;
+      
+      min = BABYLON.Vector3.Minimize(min, meshMin);
+      max = BABYLON.Vector3.Maximize(max, meshMax);
+    });
+    
+    const size = max.subtract(min);
+    const diagonal = size.length();
+    
+    camera.minZ = Math.max(0.1, diagonal * 0.001); // 0.1% of model size
+    camera.maxZ = Math.max(1000, diagonal * 10); // 10x model size
+    camera.lowerRadiusLimit = camera.minZ;
+    
+    console.log(`Adjusted clipping planes: minZ=${camera.minZ.toFixed(2)}, maxZ=${camera.maxZ.toFixed(2)} (diagonal=${diagonal.toFixed(2)})`);
+    
+    
+    camera.wheelDeltaPercentage = 0.05; 
+    
+    const scaledPrecision = diagonal > 100 ? 1 : Math.max(1, 50 * (10 / diagonal));
+    camera.pinchPrecision = scaledPrecision;
+    
+    console.log(`Zoom settings: wheelDeltaPercentage=5%, pinchPrecision=${scaledPrecision.toFixed(1)}`);
   }
 
   _unregisterFiles() {
