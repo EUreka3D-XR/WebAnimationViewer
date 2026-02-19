@@ -10,8 +10,16 @@ export class AnimationLoader {
   }
 
   getIdFromPath() {
-    const id = window.location.pathname.substring(1);
-    return id || null;
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const pathId = pathParts.length > 0 ? pathParts[pathParts.length - 1] : '';
+    const hashId = window.location.hash ? window.location.hash.slice(1) : '';
+    const id = hashId ? `${pathId}#${hashId}` : pathId;
+
+    try {
+      return id ? decodeURIComponent(id) : null;
+    } catch {
+      return id || null;
+    }
   }
 
   constructDownloadUrl(id) {

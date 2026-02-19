@@ -550,6 +550,8 @@ Images are automatically published to EGI Artifact Registry.
 
 ```bash
 PORT=3000  # Server port (default: 3000)
+PROVIDER_URL=https://3dwebviewer.eureka3dxr.fedcloud.eu/3dmlab/  # oEmbed provider_url value
+ALLOWED_OEMBED_HOSTS=3dwebviewer.eureka3dxr.fedcloud.eu,3dwebviewer-demo.eureka3dxr.fedcloud.eu,eureka3d.eu,localhost  # Comma-separated host allowlist for /3dmlab/oembed?url=
 ```
 
 ### Production Considerations
