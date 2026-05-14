@@ -391,8 +391,24 @@ class App {
    * Setup viewer controls (background, lighting, etc.)
    */
   _setupViewerControls() {
-    if (this.viewerControls) {
-      this.viewerControls.style.display = 'block';
+    // Wire settings toggle button
+    const settingsToggleBtn = document.getElementById("settingsToggleBtn");
+    const closeViewerControls = document.getElementById("closeViewerControls");
+
+    if (settingsToggleBtn) {
+      settingsToggleBtn.style.display = 'flex';
+      settingsToggleBtn.addEventListener("click", () => {
+        if (this.viewerControls) {
+          const isVisible = window.getComputedStyle(this.viewerControls).display !== 'none';
+          this.viewerControls.style.display = isVisible ? 'none' : 'block';
+        }
+      });
+    }
+
+    if (closeViewerControls && this.viewerControls) {
+      closeViewerControls.addEventListener("click", () => {
+        this.viewerControls.style.display = 'none';
+      });
     }
 
     const colorInput = document.getElementById("bgColor");
@@ -403,10 +419,21 @@ class App {
     const envValue = document.getElementById("envValue");
 
     if (colorInput) {
-      colorInput.addEventListener("input", (e) => this.viewer.setBackgroundColor(e.target.value));
+      colorInput.addEventListener("input", (e) => {
+        if (transparentChk && transparentChk.checked) {
+          transparentChk.checked = false;
+          this.viewer.setTransparentBackground(false);
+        }
+        this.viewer.setBackgroundColor(e.target.value);
+      });
     }
     if (transparentChk) {
-      transparentChk.addEventListener("change", (e) => this.viewer.setTransparentBackground(e.target.checked));
+      transparentChk.addEventListener("change", (e) => {
+        if (e.target.checked && colorInput) {
+          colorInput.value = "#ffffff";
+        }
+        this.viewer.setTransparentBackground(e.target.checked);
+      });
     }
     if (lightSlider) {
       lightSlider.addEventListener("input", (e) => {

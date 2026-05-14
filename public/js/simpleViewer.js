@@ -12,8 +12,8 @@ export class SimpleViewer {
     this._hemi = null;
     this._dirLight = null;
     this._envHelper = null;
-    this._bgHex = "#667eea";
-    this._transparent = false;
+    this._bgHex = "#ffffff";
+    this._transparent = true;
     this.controls = null;
     this._maxRetries = 3;  // Maximum number of retry attempts. This is useful due to large files
   }
@@ -30,6 +30,7 @@ export class SimpleViewer {
     this.canvas.style.height = '100%';
     this.canvas.style.display = 'block';
     canvasZone.appendChild(this.canvas);
+    Utils.blockParentScroll(this.canvas);
 
     canvasZone.style.background = this._bgHex;
 
@@ -86,7 +87,7 @@ export class SimpleViewer {
     });
 
     this.setBackgroundColor(this._bgHex);
-    this.setTransparentBackground(false);
+    this.setTransparentBackground(true);
 
     this.engine.runRenderLoop(() => this.scene.render());
     window.addEventListener("resize", () => this.engine.resize());

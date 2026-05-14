@@ -8,8 +8,8 @@ export class AudioViewer {
         this.scene = null;
         this.canvas = null;
         this.controls = null;
-        this._bgHex = "#667eea";
-        this._transparent = false;
+        this._bgHex = "#ffffff";
+        this._transparent = true;
         this.photoDome = null;
     }
 
@@ -22,8 +22,9 @@ export class AudioViewer {
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
         canvasZone.appendChild(this.canvas);
+        Utils.blockParentScroll(this.canvas);
 
-        canvasZone.style.background = '#001f3f';
+        canvasZone.style.background = 'transparent';
 
         this.engine = new BABYLON.Engine(this.canvas, true, {
             preserveDrawingBuffer: true,

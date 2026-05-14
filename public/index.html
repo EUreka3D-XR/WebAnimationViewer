@@ -30,13 +30,20 @@
 
     <div id="canvasZone"></div>
 
+    <!-- Settings toggle button (shown when model is loaded) -->
+    <button id="settingsToggleBtn" title="Toggle Settings" style="display:none;">⚙️</button>
+
     <!-- Viewer Controls (Background & Lighting) -->
     <div id="viewerControls">
+        <div class="viewer-controls-header">
+            <span>Settings</span>
+            <button id="closeViewerControls" title="Close settings">✕</button>
+        </div>
         <div class="control-group">
             <label for="bgColor">Background:</label>
-            <input type="color" id="bgColor" value="#1e1e1e" />
+            <input type="color" id="bgColor" value="#ffffff" />
             <label>
-                <input type="checkbox" id="bgTransparent" />
+                <input type="checkbox" id="bgTransparent" checked />
                 Transparent
             </label>
         </div>
@@ -53,7 +60,8 @@
     </div>
 
     <div id="controls">
-        <div>
+        <div id="controlsMainRow">
+            <button id="closeControlsBtn" title="Hide controls">⇱⇲</button>
             <select id="sceneSelect" title="Scene Selector" style="display: none;"></select>
             <select id="animationSelect" title="Animation Selector"></select>
             <button id="infoBtn" style="display: none;" title="Scene Information">ℹ️</button>
@@ -62,6 +70,9 @@
             <button id="resetBtn">🔁 Reset</button>
         </div>
     </div>
+
+    <!-- Reopen controls button (shown when controls are hidden) -->
+    <button id="reopenControlsBtn" title="Show controls" style="display:none;">▶️</button>
 
     <script type="module" src="/js/app.js"></script>
 </body>

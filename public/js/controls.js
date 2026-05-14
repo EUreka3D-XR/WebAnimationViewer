@@ -156,6 +156,23 @@ export class AnimationControls {
     });
 
     this.scene.onBeforeRenderObservable.add(() => this.updateTimeline());
+
+    const closeControlsBtn = document.getElementById("closeControlsBtn");
+    const reopenControlsBtn = document.getElementById("reopenControlsBtn");
+
+    if (closeControlsBtn && this.controls) {
+      closeControlsBtn.addEventListener("click", () => {
+        this.controls.style.display = 'none';
+        if (reopenControlsBtn) reopenControlsBtn.style.display = 'flex';
+      });
+    }
+
+    if (reopenControlsBtn && this.controls) {
+      reopenControlsBtn.addEventListener("click", () => {
+        this.controls.style.display = 'flex';
+        reopenControlsBtn.style.display = 'none';
+      });
+    }
   }
 
   // Animation helpers

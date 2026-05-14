@@ -382,3 +382,22 @@ export function getBaseName(filename) {
     if (!filename) return '';
     return filename.replace(/\.[^.]+$/, '');
 }
+
+/**
+ * @param {HTMLCanvasElement} canvas
+ */
+export function blockParentScroll(canvas) {
+    if (!canvas) return;
+
+    // Block wheel (mouse scroll / trackpad)
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+    }, { passive: false });
+
+    // Block touch scroll on mobile
+    canvas.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+}
